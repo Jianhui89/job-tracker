@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Tracker — JH</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.4.0/dist/tabler-icons.min.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg-secondary: #f5f5f3;
+    --bg-tertiary: #efefec;
+    --text: #1a1a18;
+    --text-secondary: #6b6b67;
+    --text-tertiary: #9b9b96;
+    --border: rgba(0,0,0,0.12);
+    --border-med: rgba(0,0,0,0.22);
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --font: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg-secondary: #252523;
+      --bg-tertiary: #2e2e2b;
+      --text: #f0efe8;
+      --text-secondary: #a0a09a;
+      --text-tertiary: #6a6a65;
+      --border: rgba(255,255,255,0.1);
+      --border-med: rgba(255,255,255,0.2);
+    }
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg-secondary);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  /* Layout */
+  .app { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: var(--bg);
+    border-right: 0.5px solid var(--border);
+    padding: 1.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    position: fixed;
+    top: 0; bottom: 0; left: 0;
+  }
+  .main { margin-left: 220px; padding: 2rem; max-width: 1100px; }
+  .logo { font-size: 15px; font-weight: 600; color: var(--text); padding: 0 0.5rem 1rem; border-bottom: 0.5px solid var(--border); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 8px; }
+  .logo i { font-size: 18px; }
+  .nav-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--radius-md); font-size: 13px; color: var(--text-secondary); cursor: pointer; border: none; background: none; width: 100%; text-align: left; }
+  .nav-item:hover { background: var(--bg-secondary); color: var(--text); }
+  .nav-item.active { background: var(--bg-tertiary); color: var(--text); font-weight: 500; }
+  .nav-item i { font-size: 16px; }
+  .sidebar-footer { margin-top: auto; padding-top: 1rem; border-top: 0.5px solid var(--border); }
+  .sidebar-footer p { font-size: 11px; color: var(--text-tertiary); padding: 0 0.5rem; }
+
+  /* Top bar */
+  .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px; }
+  .top-bar h1 { font-size: 20px; font-weight: 600; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 7px 14px; border-radius: var(--radius-md); border: 0.5px solid var(--border-med); background: transparent; color: var(--text); cursor: pointer; font-family: var(--font); transition: background 0.12s; }
+  .btn:hover { background: var(--bg-secondary); }
+  .btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn-primary:hover { opacity: 0.85; background: var(--text); }
+  .btn-danger { color: #A32D2D; border-color: rgba(163,45,45,0.3); }
+  .btn-danger:hover { background: #FCEBEB; }
+
+  /* Metrics */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1.75rem; }
+  .metric { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.125rem; }
+  .metric-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metric-value { font-size: 26px; font-weight: 600; }
+  .metric-sub { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+  /* Tabs + filter */
+  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 2px; background: var(--bg-tertiary); border-radius: var(--radius-md); padding: 3px; }
+  .tab { font-size: 13px; padding: 5px 12px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text-secondary); border: none; background: none; font-family: var(--font); }
+  .tab.active { background: var(--bg); color: var(--text); font-weight: 500; box-shadow: 0 0 0 0.5px var(--border); }
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .filter-row input, .filter-row select {
+    font-size: 13px; padding: 6px 10px; border-radius: var(--radius-md);
+    border: 0.5px solid var(--border-med); background: var(--bg);
+    color: var(--text); font-family: var(--font);
+  }
+  .filter-row input { min-width: 180px; }
+
+  /* Kanban */
+  .kanban { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 1rem; }
+  .kanban-col { min-width: 150px; }
+  .col-header { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; padding: 0 4px 8px; display: flex; align-items: center; justify-content: space-between; }
+  .col-count { font-size: 11px; background: var(--bg-tertiary); padding: 1px 7px; border-radius: 10px; color: var(--text-secondary); }
+  .col-cards { display: flex; flex-direction: column; gap: 8px; min-height: 60px; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s; }
+  .card:hover { border-color: var(--border-med); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .card-company { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+  .card-role { font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card-footer { display: flex; align-items: center; justify-content: space-between; }
+  .card-date { font-size: 11px; color: var(--text-tertiary); }
+  .priority-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .p-High { background: #E24B4A; }
+  .p-Medium { background: #BA7517; }
+  .p-Low { background: #639922; }
+  .empty-col { font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 20px 0; border: 0.5px dashed var(--border); border-radius: var(--radius-md); }
+
+  /* List */
+  .list-wrap { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; color: var(--text-secondary); border-bottom: 0.5px solid var(--border); text-transform: uppercase; letter-spacing: 0.04em; background: var(--bg-secondary); }
+  td { padding: 11px 14px; border-bottom: 0.5px solid var(--border); color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  tbody tr { cursor: pointer; transition: background 0.1s; }
+  tbody tr:hover td { background: var(--bg-secondary); }
+
+  /* Badges */
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+  .s-Wishlist  { background: #E1F5EE; color: #0F6E56; }
+  .s-Applied   { background: #E6F1FB; color: #185FA5; }
+  .s-Screening { background: #FAEEDA; color: #854F0B; }
+  .s-Interview { background: #EEEDFE; color: #534AB7; }
+  .s-Offer     { background: #EAF3DE; color: #3B6D11; }
+  .s-Rejected  { background: #FCEBEB; color: #A32D2D; }
+
+  /* Modal */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; align-items: center; justify-content: center; padding: 1rem; }
+  .overlay.open { display: flex; }
+  .modal { background: var(--bg); border-radius: var(--radius-lg); border: 0.5px solid var(--border); padding: 1.5rem; width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto; }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+  .modal-header h2 { font-size: 16px; font-weight: 600; }
+  .close-btn { background: none; border: none; cursor: pointer; color: var(--text-secondary); font-size: 20px; line-height: 1; padding: 0; display: flex; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+  .form-group label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+  .form-group input, .form-group select, .form-group textarea {
+    font-size: 13px; padding: 8px 10px; border-radius: var(--radius-md);
+    border: 0.5px solid var(--border-med); background: var(--bg);
+    color: var(--text); font-family: var(--font);
+  }
+  .form-group textarea { resize: vertical; min-height: 80px; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--text); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.25rem; padding-top: 1rem; border-top: 0.5px solid var(--border); }
+
+  /* Detail view */
+  .detail-meta { display: flex; gap: 8px; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin-bottom: 1rem; }
+  .detail-field label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 3px; }
+  .detail-field p { font-size: 13px; color: var(--text); }
+  .detail-section { margin-bottom: 1rem; }
+  .detail-section h3 { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+  .detail-notes { font-size: 13px; color: var(--text); line-height: 1.6; white-space: pre-wrap; background: var(--bg-secondary); border-radius: var(--radius-md); padding: 10px 12px; }
+  .status-select { font-size: 13px; padding: 6px 10px; border-radius: var(--radius-md); border: 0.5px solid var(--border-med); background: var(--bg); color: var(--text); font-family: var(--font); }
+
+  /* AI box */
+  .ai-box { margin-top: 1rem; border: 0.5px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+  .ai-box-header { padding: 8px 12px; background: var(--bg-secondary); border-bottom: 0.5px solid var(--border); font-size: 12px; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+  .ai-box-body { padding: 12px; font-size: 13px; color: var(--text); line-height: 1.7; white-space: pre-wrap; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 1.5px solid var(--border-med); border-top-color: var(--text); border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Timeline view */
+  .timeline { display: flex; flex-direction: column; gap: 8px; }
+  .timeline-item { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px; display: grid; grid-template-columns: 80px 1fr auto; gap: 12px; align-items: center; cursor: pointer; transition: border-color 0.12s; }
+  .timeline-item:hover { border-color: var(--border-med); }
+  .timeline-date { font-size: 12px; color: var(--text-secondary); }
+  .timeline-info h4 { font-size: 13px; font-weight: 600; }
+  .timeline-info p { font-size: 12px; color: var(--text-secondary); }
+  .next-step { font-size: 12px; color: var(--text-secondary); background: var(--bg-secondary); padding: 4px 8px; border-radius: var(--radius-sm); max-width: 180px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Empty state */
+  .empty-state { text-align: center; padding: 4rem 2rem; color: var(--text-secondary); }
+  .empty-state i { font-size: 40px; margin-bottom: 1rem; display: block; color: var(--text-tertiary); }
+  .empty-state h3 { font-size: 16px; font-weight: 500; color: var(--text); margin-bottom: 0.5rem; }
+  .empty-state p { font-size: 13px; margin-bottom: 1.25rem; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); font-size: 13px; padding: 8px 18px; border-radius: var(--radius-md); opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 1rem; }
+    .kanban { grid-template-columns: repeat(3, 1fr); }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo"><i class="ti ti-briefcase"></i> Job Tracker</div>
+    <button class="nav-item active" onclick="switchView('board',this)"><i class="ti ti-layout-kanban"></i> Board</button>
+    <button class="nav-item" onclick="switchView('list',this)"><i class="ti ti-list"></i> List</button>
+    <button class="nav-item" onclick="switchView('timeline',this)"><i class="ti ti-calendar"></i> Timeline</button>
+    <div class="sidebar-footer">
+      <p>v1.0 · Jianhui89<br>Data stored locally</p>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="top-bar">
+      <h1 id="view-title">Board</h1>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</button>
+        <button class="btn btn-primary" onclick="openAdd()"><i class="ti ti-plus"></i> Add role</button>
+      </div>
+    </div>
+
+    <div class="metrics" id="metrics"></div>
+
+    <div class="toolbar">
+      <div class="tabs" id="tabs">
+        <button class="tab active" onclick="switchView('board',this)">Board</button>
+        <button class="tab" onclick="switchView('list',this)">List</button>
+        <button class="tab" onclick="switchView('timeline',this)">Timeline</button>
+      </div>
+      <div class="filter-row">
+        <input type="text" id="search" placeholder="Search…" oninput="render()">
+        <select id="filter-priority" onchange="render()">
+          <option value="">All priorities</option>
+          <option>High</option><option>Medium</option><option>Low</option>
+        </select>
+        <select id="filter-status" onchange="render()">
+          <option value="">All statuses</option>
+          <option>Wishlist</option><option>Applied</option><option>Screening</option>
+          <option>Interview</option><option>Offer</option><option>Rejected</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="view-board"></div>
+    <div id="view-list" style="display:none;"></div>
+    <div id="view-timeline" style="display:none;"></div>
+  </main>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="overlay" id="add-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Add application</h2>
+      <button class="close-btn" onclick="closeModal('add-modal')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Company *</label><input id="f-company" placeholder="e.g. TikTok"></div>
+      <div class="form-group"><label>Role *</label><input id="f-role" placeholder="e.g. Trust & Safety Lead"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Status</label>
+        <select id="f-status">
+          <option>Wishlist</option><option selected>Applied</option><option>Screening</option>
+          <option>Interview</option><option>Offer</option><option>Rejected</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Priority</label>
+        <select id="f-priority"><option>High</option><option selected>Medium</option><option>Low</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Applied date</label><input type="date" id="f-date"></div>
+      <div class="form-group"><label>Next step / deadline</label><input id="f-next" placeholder="e.g. HR call Jun 20"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Salary (SGD)</label><input id="f-salary" placeholder="e.g. 8000"></div>
+      <div class="form-group"><label>Recruiter / contact</label><input id="f-recruiter" placeholder="e.g. Erika (TikTok HR)"></div>
+    </div>
+    <div class="form-group"><label>Job description (paste for AI gap analysis)</label><textarea id="f-jd" placeholder="Paste JD here to enable AI gap analysis…"></textarea></div>
+    <div class="form-group"><label>Notes</label><textarea id="f-notes" placeholder="Impressions, referrals, interview prep notes…"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('add-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveApp()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="overlay" id="detail-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="detail-heading">Role</h2>
+      <button class="close-btn" onclick="closeModal('detail-modal')"><i class="ti ti-x"></i></button>
+    </div>
+    <div id="detail-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="d-delete"><i class="ti ti-trash"></i> Delete</button>
+      <button class="btn" id="d-edit"><i class="ti ti-edit"></i> Edit</button>
+      <button class="btn" onclick="closeModal('detail-modal')">Close</button>
+      <button class="btn btn-primary" id="d-analyse" style="display:none;"><i class="ti ti-sparkles"></i> AI gap analysis</button>
+    </div>
+    <div id="ai-result" style="display:none;" class="ai-box">
+      <div class="ai-box-header"><i class="ti ti-sparkles"></i> Gap analysis — Claude</div>
+      <div class="ai-box-body" id="ai-text"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STATUSES = ['Wishlist','Applied','Screening','Interview','Offer','Rejected'];
+const JH = `Candidate: Jian Hui Cho (JH), Singapore. 8+ years Trust & Safety and Platform Operations. Roles: Meta Premier Partner Ops Specialist (direct hire 2025), Optimum Solutions/Meta contractor (2024-25), Accenture onsite Meta (2017-23), Singapore Police Force (2012-14). Core skills: content moderation, vendor management, process improvement, multicultural team leadership (APAC/EMEA, 39 people, 8 languages), stakeholder management, SLA governance, policy development. Certifications: ITIL v4, Google Digital Marketing. MBA candidate Birmingham Business School. Key achievements: IG verification threshold project (10K→30K, 5%→30-40% verifiable rate), vendor KB migration (~219 agents, improved CSAT), Project Gekko (51 vendors transitioned in 2 weeks), US/Indonesia Elections 2024 APAC POC, MI6 White Glove launch, QA error reduction (99.5%+ vs 95% benchmark).`;
+
+let apps = JSON.parse(localStorage.getItem('jat_v2') || 'null');
+let editId = null;
+let detailId = null;
+let currentView = 'board';
+
+if (!apps) {
+  apps = [
+    { id: 1, company: 'TikTok', role: 'Content Risk Evaluation Team Lead', status: 'Screening', priority: 'High', date: '2026-05-20', next: 'HR screening with Erika', salary: '', recruiter: 'Erika', jd: '', notes: 'Safety Model Operations team. Strong T&S alignment.' },
+    { id: 2, company: 'MAS', role: 'Senior PM Contract', status: 'Interview', priority: 'High', date: '2026-05-28', next: 'Interview Jun 11 — Ang Kian Wee, Koh Kai Meng, Charlene Ser', salary: '', recruiter: 'Isaac (referral)', jd: '', notes: 'Data Analytics & Engineering Division. YZ insider contact.' },
+    { id: 3, company: 'Anthropic', role: 'Product Support Specialist', status: 'Applied', priority: 'Medium', date: '2026-06-01', next: '', salary: '', recruiter: '', jd: '', notes: 'Singapore, founding APAC hire. T&S → AI safety positioning.' }
+  ];
+  save();
+}
+
+function save() { localStorage.setItem('jat_v2', JSON.stringify(apps)); }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function fmt(d) {
+  if (!d) return '—';
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-SG', { day: 'numeric', month: 'short' });
+}
+
+function filtered() {
+  const q = (document.getElementById('search')?.value || '').toLowerCase();
+  const fp = document.getElementById('filter-priority')?.value || '';
+  const fs = document.getElementById('filter-status')?.value || '';
+  return apps.filter(a =>
+    (!q || a.company.toLowerCase().includes(q) || a.role.toLowerCase().includes(q)) &&
+    (!fp || a.priority === fp) &&
+    (!fs || a.status === fs)
+  );
+}
+
+function renderMetrics() {
+  const total = apps.length;
+  const active = apps.filter(a => !['Offer','Rejected'].includes(a.status)).length;
+  const interviews = apps.filter(a => ['Screening','Interview'].includes(a.status)).length;
+  const offers = apps.filter(a => a.status === 'Offer').length;
+  document.getElementById('metrics').innerHTML = [
+    { label: 'Total', value: total, sub: 'roles tracked' },
+    { label: 'Active', value: active, sub: 'in progress' },
+    { label: 'Interviews', value: interviews, sub: 'screening+' },
+    { label: 'Offers', value: offers, sub: 'received' }
+  ].map(m => `<div class="metric">
+    <div class="metric-label">${m.label}</div>
+    <div class="metric-value">${m.value}</div>
+    <div class="metric-sub">${m.sub}</div>
+  </div>`).join('');
+}
+
+function renderBoard() {
+  const data = filtered();
+  document.getElementById('view-board').innerHTML = `<div class="kanban">${
+    STATUSES.map(s => {
+      const cards = data.filter(a => a.status === s);
+      return `<div class="kanban-col">
+        <div class="col-header"><span>${s}</span><span class="col-count">${cards.length}</span></div>
+        <div class="col-cards">${cards.length ? cards.map(a => `
+          <div class="card" onclick="openDetail(${a.id})">
+            <div class="card-company">${a.company}</div>
+            <div class="card-role">${a.role}</div>
+            <div class="card-footer">
+              <span class="card-date">${fmt(a.date)}</span>
+              <span class="priority-dot p-${a.priority}" title="${a.priority}"></span>
+            </div>
+          </div>`).join('') : `<div class="empty-col">Empty</div>`}
+        </div>
+      </div>`;
+    }).join('')
+  }</div>`;
+}
+
+function renderList() {
+  const data = filtered();
+  document.getElementById('view-list').innerHTML = data.length ? `<div class="list-wrap"><table>
+    <thead><tr><th>Company</th><th>Role</th><th>Status</th><th>Priority</th><th>Applied</th><th>Next step</th></tr></thead>
+    <tbody>${data.map(a => `<tr onclick="openDetail(${a.id})">
+      <td style="font-weight:600">${a.company}</td>
+      <td>${a.role}</td>
+      <td><span class="badge s-${a.status}">${a.status}</span></td>
+      <td><span style="display:flex;align-items:center;gap:6px;"><span class="priority-dot p-${a.priority}"></span>${a.priority}</span></td>
+      <td>${fmt(a.date)}</td>
+      <td style="color:var(--text-secondary);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.next || '—'}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>` : `<div class="empty-state"><i class="ti ti-inbox"></i><h3>No applications</h3><p>Add your first role to get started.</p><button class="btn btn-primary" onclick="openAdd()"><i class="ti ti-plus"></i> Add role</button></div>`;
+}
+
+function renderTimeline() {
+  const data = [...filtered()].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  document.getElementById('view-timeline').innerHTML = data.length ? `<div class="timeline">${
+    data.map(a => `<div class="timeline-item" onclick="openDetail(${a.id})">
+      <div class="timeline-date">${fmt(a.date)}</div>
+      <div class="timeline-info">
+        <h4>${a.company}</h4>
+        <p>${a.role}</p>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
+        <span class="badge s-${a.status}">${a.status}</span>
+        ${a.next ? `<span class="next-step">${a.next}</span>` : ''}
+      </div>
+    </div>`)
+  .join('')}</div>` : `<div class="empty-state"><i class="ti ti-calendar"></i><h3>Nothing yet</h3><p>Add roles to see them on the timeline.</p></div>`;
+}
+
+function render() {
+  renderMetrics();
+  renderBoard();
+  renderList();
+  renderTimeline();
+}
+
+function switchView(v, el) {
+  currentView = v;
+  ['board','list','timeline'].forEach(x => {
+    document.getElementById('view-' + x).style.display = x === v ? '' : 'none';
+  });
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.getElementById('view-title').textContent = v.charAt(0).toUpperCase() + v.slice(1);
+}
+
+function openAdd() {
+  editId = null;
+  document.getElementById('modal-title').textContent = 'Add application';
+  document.getElementById('f-company').value = '';
+  document.getElementById('f-role').value = '';
+  document.getElementById('f-status').value = 'Applied';
+  document.getElementById('f-priority').value = 'Medium';
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('f-next').value = '';
+  document.getElementById('f-salary').value = '';
+  document.getElementById('f-recruiter').value = '';
+  document.getElementById('f-jd').value = '';
+  document.getElementById('f-notes').value = '';
+  document.getElementById('add-modal').classList.add('open');
+  setTimeout(() => document.getElementById('f-company').focus(), 100);
+}
+
+function openEdit(id) {
+  const a = apps.find(x => x.id === id);
+  if (!a) return;
+  editId = id;
+  closeModal('detail-modal');
+  document.getElementById('modal-title').textContent = 'Edit application';
+  document.getElementById('f-company').value = a.company;
+  document.getElementById('f-role').value = a.role;
+  document.getElementById('f-status').value = a.status;
+  document.getElementById('f-priority').value = a.priority;
+  document.getElementById('f-date').value = a.date || '';
+  document.getElementById('f-next').value = a.next || '';
+  document.getElementById('f-salary').value = a.salary || '';
+  document.getElementById('f-recruiter').value = a.recruiter || '';
+  document.getElementById('f-jd').value = a.jd || '';
+  document.getElementById('f-notes').value = a.notes || '';
+  document.getElementById('add-modal').classList.add('open');
+}
+
+function saveApp() {
+  const company = document.getElementById('f-company').value.trim();
+  const role = document.getElementById('f-role').value.trim();
+  if (!company || !role) { alert('Company and role are required.'); return; }
+  const data = {
+    company, role,
+    status: document.getElementById('f-status').value,
+    priority: document.getElementById('f-priority').value,
+    date: document.getElementById('f-date').value,
+    next: document.getElementById('f-next').value.trim(),
+    salary: document.getElementById('f-salary').value.trim(),
+    recruiter: document.getElementById('f-recruiter').value.trim(),
+    jd: document.getElementById('f-jd').value.trim(),
+    notes: document.getElementById('f-notes').value.trim()
+  };
+  if (editId) {
+    const idx = apps.findIndex(a => a.id === editId);
+    apps[idx] = { ...apps[idx], ...data };
+    toast('Updated');
+  } else {
+    apps.push({ ...data, id: Date.now() });
+    toast('Added');
+  }
+  save(); render();
+  closeModal('add-modal');
+}
+
+function openDetail(id) {
+  detailId = id;
+  const a = apps.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('ai-result').style.display = 'none';
+  document.getElementById('detail-heading').textContent = `${a.company} — ${a.role}`;
+  document.getElementById('detail-body').innerHTML = `
+    <div class="detail-meta">
+      <span class="badge s-${a.status}">${a.status}</span>
+      <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-secondary)"><span class="priority-dot p-${a.priority}"></span>${a.priority} priority</span>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-field"><label>Applied</label><p>${fmt(a.date)}</p></div>
+      <div class="detail-field"><label>Next step</label><p>${a.next || '—'}</p></div>
+      <div class="detail-field"><label>Salary (SGD)</label><p>${a.salary ? '$' + parseInt(a.salary).toLocaleString() : '—'}</p></div>
+      <div class="detail-field"><label>Recruiter</label><p>${a.recruiter || '—'}</p></div>
+    </div>
+    ${a.notes ? `<div class="detail-section"><h3>Notes</h3><div class="detail-notes">${a.notes}</div></div>` : ''}
+    ${a.jd ? `<div class="detail-section"><h3>Job description (excerpt)</h3><div class="detail-notes" style="max-height:90px;overflow-y:auto;font-size:12px;">${a.jd.substring(0,500)}${a.jd.length>500?'…':''}</div></div>` : ''}
+    <div style="margin-top:1rem;display:flex;align-items:center;gap:10px;">
+      <label style="font-size:12px;color:var(--text-secondary);">Move to:</label>
+      <select class="status-select" onchange="moveStatus(${id},this.value)">
+        ${STATUSES.map(s => `<option ${s===a.status?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>`;
+  document.getElementById('d-delete').onclick = () => deleteApp(id);
+  document.getElementById('d-edit').onclick = () => openEdit(id);
+  document.getElementById('d-analyse').style.display = a.jd ? 'inline-flex' : 'none';
+  document.getElementById('d-analyse').onclick = () => runAnalysis(id);
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+function moveStatus(id, status) {
+  const a = apps.find(x => x.id === id);
+  if (a) { a.status = status; save(); render(); openDetail(id); toast('Status updated'); }
+}
+
+function deleteApp(id) {
+  if (!confirm('Remove this application?')) return;
+  apps = apps.filter(a => a.id !== id);
+  save(); render();
+  closeModal('detail-modal');
+  toast('Deleted');
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+async function runAnalysis(id) {
+  const a = apps.find(x => x.id === id);
+  if (!a?.jd) return;
+  const box = document.getElementById('ai-result');
+  const txt = document.getElementById('ai-text');
+  box.style.display = 'block';
+  txt.innerHTML = '<span class="spinner"></span> Analysing against your profile…';
+  document.getElementById('d-analyse').disabled = true;
+  const prompt = `${JH}\n\nApplying for: ${a.company} — ${a.role}\n\nJob description:\n${a.jd}\n\nProvide a concise gap analysis in exactly 3 sections:\n\n1. STRONG MATCH\n2-3 bullet points where JH's background directly maps to the JD. Be specific — name the actual experience.\n\n2. GAPS TO ADDRESS\n2-3 areas where JH should prepare or address proactively. Be honest.\n\n3. RECOMMENDED ANGLE\n1-2 sentences on how JH should position himself for this role. Be concrete.`;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    txt.textContent = data.content?.find(b => b.type === 'text')?.text || 'No response.';
+  } catch(e) {
+    txt.textContent = 'Error — check your connection and try again.';
+  }
+  document.getElementById('d-analyse').disabled = false;
+}
+
+function exportCSV() {
+  const headers = ['Company','Role','Status','Priority','Applied','Next Step','Salary','Recruiter','Notes'];
+  const rows = apps.map(a => [a.company,a.role,a.status,a.priority,a.date,a.next,a.salary,a.recruiter,a.notes].map(v => `"${(v||'').replace(/"/g,'""')}"`));
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url; link.download = 'job-applications.csv'; link.click();
+  URL.revokeObjectURL(url);
+  toast('CSV exported');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeModal('add-modal');
+    closeModal('detail-modal');
+  }
+});
+
+render();
+</script>
+</body>
+</html>
