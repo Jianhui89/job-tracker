@@ -257,6 +257,19 @@
       <h2 id="modal-title">Add application</h2>
       <button class="close-btn" onclick="closeModal('add-modal')"><i class="ti ti-x"></i></button>
     </div>
+    <div class="form-group">
+      <label>Job posting URL <span style="font-weight:400;color:var(--text-tertiary)">(auto-fill from URL)</span></label>
+      <div style="display:flex;gap:8px;">
+        <input id="f-url" placeholder="Paste job URL — MyCareersFuture, Indeed, company site…" style="flex:1;">
+        <button class="btn btn-primary" onclick="autofillFromUrl()" id="autofill-btn" style="white-space:nowrap;flex-shrink:0;"><i class="ti ti-wand"></i> Auto-fill</button>
+      </div>
+      <div id="autofill-status" style="font-size:12px;color:var(--text-secondary);margin-top:4px;display:none;"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <div style="flex:1;height:0.5px;background:var(--border);"></div>
+      <span style="font-size:11px;color:var(--text-tertiary);">or fill manually</span>
+      <div style="flex:1;height:0.5px;background:var(--border);"></div>
+    </div>
     <div class="form-row">
       <div class="form-group"><label>Company *</label><input id="f-company" placeholder="e.g. TikTok"></div>
       <div class="form-group"><label>Role *</label><input id="f-role" placeholder="e.g. Trust & Safety Lead"></div>
@@ -457,8 +470,11 @@ function openAdd() {
   document.getElementById('f-recruiter').value = '';
   document.getElementById('f-jd').value = '';
   document.getElementById('f-notes').value = '';
+  document.getElementById('f-url').value = '';
+  const s = document.getElementById('autofill-status');
+  s.style.display = 'none'; s.textContent = ''; s.style.color = 'var(--text-secondary)';
   document.getElementById('add-modal').classList.add('open');
-  setTimeout(() => document.getElementById('f-company').focus(), 100);
+  setTimeout(() => document.getElementById('f-url').focus(), 100);
 }
 
 function openEdit(id) {
@@ -477,6 +493,9 @@ function openEdit(id) {
   document.getElementById('f-recruiter').value = a.recruiter || '';
   document.getElementById('f-jd').value = a.jd || '';
   document.getElementById('f-notes').value = a.notes || '';
+  document.getElementById('f-url').value = '';
+  const s2 = document.getElementById('autofill-status');
+  s2.style.display = 'none'; s2.textContent = ''; s2.style.color = 'var(--text-secondary)';
   document.getElementById('add-modal').classList.add('open');
 }
 
@@ -587,6 +606,74 @@ function exportCSV() {
   link.href = url; link.download = 'job-applications.csv'; link.click();
   URL.revokeObjectURL(url);
   toast('CSV exported');
+}
+
+async function autofillFromUrl() {
+  const url = document.getElementById('f-url').value.trim();
+  if (!url) { alert('Please paste a job URL first.'); return; }
+
+  const btn = document.getElementById('autofill-btn');
+  const status = document.getElementById('autofill-status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Fetching…';
+  status.style.display = 'block';
+  status.textContent = 'Fetching page via Jina.ai…';
+
+  try {
+    // Use Jina Reader to bypass CORS and get clean text
+    const jinaUrl = 'https://r.jina.ai/' + url;
+    const res = await fetch(jinaUrl, { headers: { 'Accept': 'text/plain' } });
+    if (!res.ok) throw new Error('Could not fetch page. Try a direct company career page URL.');
+    const pageText = await res.text();
+    const excerpt = pageText.substring(0, 6000); // keep tokens reasonable
+
+    status.textContent = 'Extracting details with Claude…';
+
+    const prompt = `Extract job posting details from the following page content and return ONLY a valid JSON object with these fields:
+{
+  "company": "company name",
+  "role": "job title",
+  "jd": "full job description text (responsibilities, requirements, qualifications — keep it detailed)",
+  "salary": "salary if mentioned, else empty string",
+  "location": "job location if mentioned, else empty string"
+}
+
+Return ONLY the JSON. No explanation, no markdown, no backticks.
+
+Page content:
+${excerpt}`;
+
+    const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const apiData = await apiRes.json();
+    const rawText = apiData.content?.find(b => b.type === 'text')?.text || '';
+    const cleaned = rawText.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+
+    // Auto-fill the form
+    if (parsed.company) document.getElementById('f-company').value = parsed.company;
+    if (parsed.role) document.getElementById('f-role').value = parsed.role;
+    if (parsed.jd) document.getElementById('f-jd').value = parsed.jd;
+    if (parsed.salary) document.getElementById('f-salary').value = parsed.salary;
+
+    status.textContent = '✓ Fields filled — please review and adjust before saving.';
+    status.style.color = '#3B6D11';
+    toast('Auto-filled from URL');
+  } catch (e) {
+    status.textContent = '⚠ ' + (e.message || 'Could not extract details. Try a different URL or fill manually.');
+    status.style.color = '#A32D2D';
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-wand"></i> Auto-fill';
 }
 
 document.addEventListener('keydown', e => {
